@@ -22,7 +22,7 @@ bus_h.each do |parsed_line|
   if parsed_line["categories"].inject(false){|bo,i| bo ||= top_10_categories.include?(i)}
     found_c = parsed_line["categories"] & top_10_categories
 
-    if found_c && category_reviews[found_c.first].length < 1000
+    if found_c && category_reviews[found_c.first].length < 1200
       unless category_reviews[found_c.first].include?(parsed_line["business_id"])
         category_reviews[found_c.first] << parsed_line["business_id"]
       end
@@ -37,6 +37,8 @@ end
 rev_file = File.open("reviews", 'a')
 categories_file = File.open("categoriesfile", 'a')
 
+cat_review_id = {}
+top_10_categories.each { |c| cat_review_id[c] = [] }
 category_reviews.map do |category, list_of_res|
   list_of_res.each do |bus_id|
     buss = @yelp.find("business_id" => bus_id).first
@@ -46,6 +48,24 @@ category_reviews.map do |category, list_of_res|
     text = buss['text'].tr("\n","")
     rev_file.write("#{text}\n")
     categories_file.write("#{category}\n")
+    cat_review_id[category] << { review_id: buss['review_id'], bus_id: bus_id }
+  end
+end
+
+cat_review_id.each do |category, rev_bus|
+  missing_reviews = 1200 - rev_bus.length
+
+  require 'pry'; binding.pry
+  missing_reviews.times do |i|
+    business_id = rev_bus[i]['bus_id']
+    buss = @yelp.find("business_id" => business_id).skip(1).first
+    if buss.nil?
+      missing_reviews += 1
+    else
+      text = buss['text'].tr("\n","")
+      rev_file.write("#{text}\n")
+      categories_file.write("#{category}\n")
+    end
   end
 end
 
